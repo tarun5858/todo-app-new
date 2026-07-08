@@ -1,0 +1,273 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ledger — a to-do list</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ECE7DA;
+    --paper-line: #D8D0BC;
+    --ink: #2A2723;
+    --ink-soft: #6B6558;
+    --teal: #2F6F62;
+    --rust: #B5533C;
+    --done: #A39D8C;
+  }
+ 
+  * { box-sizing: border-box; }
+ 
+  html, body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+ 
+  .page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 3.2em 1.5em 4em;
+  }
+ 
+  header {
+    margin-bottom: 1.6em;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 0.9em;
+  }
+ 
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 2.4em;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.15em;
+    color: var(--ink);
+  }
+ 
+  .subtitle {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 0.85em;
+    letter-spacing: 0.02em;
+  }
+ 
+  .entry-row {
+    display: flex;
+    gap: 0.6em;
+    margin-bottom: 1.8em;
+  }
+ 
+  #task-input {
+    flex: 1;
+    background: #F7F4EB;
+    border: 1.5px solid var(--ink);
+    padding: 0.7em 0.8em;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1em;
+    color: var(--ink);
+  }
+ 
+  #task-input:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 1px;
+  }
+ 
+  #add-btn {
+    background: var(--teal);
+    color: #F7F4EB;
+    border: 1.5px solid var(--teal);
+    padding: 0.7em 1.2em;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+ 
+  #add-btn:hover { background: #285F53; }
+  #add-btn:active { transform: scale(0.97); }
+  #add-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+ 
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--ink-soft);
+    font-size: 0.8em;
+    margin-bottom: 0.6em;
+    letter-spacing: 0.02em;
+  }
+ 
+  #clear-done {
+    background: none;
+    border: none;
+    color: var(--rust);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95em;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
+  #clear-done:disabled { color: var(--done); cursor: default; text-decoration: none; }
+ 
+  ul#task-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+ 
+  .task {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    padding: 0.75em 0;
+    border-bottom: 1px solid var(--paper-line);
+    animation: settle 0.18s ease-out;
+  }
+  .taskcompleted {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    padding: 0.75em 0;
+    border-bottom: 1px solid var(--paper-line);
+    animation: settle 0.18s ease-out;
+    background-color: #c3e1c3;
+  }
+ 
+  @keyframes settle {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+ 
+  .task-index {
+    font-size: 0.75em;
+    color: var(--ink-soft);
+    width: 1.8em;
+    flex-shrink: 0;
+    text-align: right;
+  }
+ 
+  .checkbox {
+    width: 1.15em;
+    height: 1.15em;
+    flex-shrink: 0;
+    border: 1.5px solid var(--ink);
+    background: #F7F4EB;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+ 
+  .checkbox:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+ 
+  .checkbox.checked {
+    background: var(--teal);
+    border-color: var(--teal);
+  }
+ 
+  .checkbox.checked::after {
+    content: '';
+    position: absolute;
+    left: 0.32em;
+    top: 0.12em;
+    width: 0.32em;
+    height: 0.6em;
+    border: solid #F7F4EB;
+    border-width: 0 2px 2px 0;
+    transform: rotate(40deg);
+  }
+ 
+  .task-text {
+    flex: 1;
+    font-size: 1em;
+    word-break: break-word;
+  }
+ 
+  .task.completed .task-text {
+    color: var(--done);
+    text-decoration: line-through;
+    text-decoration-color: var(--done);
+  }
+ 
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 1.1em;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.2em 0.3em;
+    transition: color 0.15s ease;
+  }
+ 
+  .delete-btn:hover { color: var(--rust); }
+  .delete-btn:focus-visible { outline: 2px solid var(--rust); outline-offset: 2px; }
+ 
+  .carry-badge {
+    flex-shrink: 0;
+    font-size: 0.68em;
+    color: var(--rust);
+    border: 1px solid var(--rust);
+    border-radius: 999px;
+    padding: 0.1em 0.55em;
+    white-space: nowrap;
+  }
+ 
+  .empty-state {
+    padding: 2em 0;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.9em;
+    font-style: normal;
+  }
+ 
+  .empty-state .mark {
+    display: block;
+    font-family: 'Fraunces', serif;
+    font-size: 1.6em;
+    color: var(--paper-line);
+    margin-bottom: 0.2em;
+  }
+ 
+  @media (prefers-reduced-motion: reduce) {
+    .task { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>To-Do App</h1>
+       <p class="subtitle">Add, Delete and Mark tasks as completed.</p>
+    </header>
+ 
+      <form class="entry-row" id="entry-form">
+        <input 
+        type="text"
+        id="task-input"
+        placeholder="Enter a new task"
+        maxlength="250"
+        autocompelte="off"
+        aria-label="New Task"
+        >
+
+       <button type="submit" id="add-btn">Add Task</button>
+    </form>
+
+    <div class="stats">
+        <span id="stats-text">0 open</span>
+        <button id="clear-done" type="button"> Clear Completed Task</button>
+    </div>
+ 
+     <ul id="task-list" aria-live="polite"></ul>
+  </div>
+
+  <script src="./script.js"></script>
+  </body>
