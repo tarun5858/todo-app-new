@@ -1,5 +1,5 @@
 (function () {
-  const API_URL = 'http://localhost:5000/api/tasks';
+  const API_URL = '/api/tasks';
   const LAST_CLEANUP_KEY = 'ledger-last-cleanup'; // stays in localStorage — it's just a local flag, not task data
 
   const form = document.getElementById('entry-form');
