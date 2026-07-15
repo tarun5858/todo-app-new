@@ -4,6 +4,7 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const taskRoutes = require("./routes/taskRoutes");
 const path = require('path');
+const authRoutes = require('./routes/authRoutes')
 
 const app = express();
 
@@ -16,6 +17,7 @@ const app = express();
 // app.use(cors({ origin: allowedOrigins })); // allows your frontend (different origin) to call this API
 app.use(cors()); // allows your frontend (different origin) to call this API
 app.use(express.json()); // parses incoming JSON request bodies
+app.use('/api/auth',authRoutes);
 
 connectDB();
 

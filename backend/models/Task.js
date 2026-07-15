@@ -11,6 +11,11 @@ const taskSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  user:{
+    type: mongoose.Schema.Types.ObjectId,
+    ref:'User',
+    required:true
+  },
   createdDate: {
     type: String, // "YYYY-MM-DD" — matches the midnight-rollover logic in the frontend
     default: () => new Date().toISOString().slice(0, 10)
