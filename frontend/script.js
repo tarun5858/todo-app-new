@@ -201,7 +201,7 @@
   async function toggleTask(id, currentlyCompleted) {
     try {
       const updated = await updateTaskOnServer(id, { completed: !currentlyCompleted });
-      tasks = tasks.map(t => t.id === id ? updated : t);
+      tasks = tasks.map(t => t.id === id ? updated : t); // only this one task is replaced
       render();
     } catch (err) {
       console.error(err);
@@ -234,11 +234,11 @@
   }
 
   async function clearCompleted() {
-    const completedIds = tasks.filter(t => t.completed).map(t => t.id);
+    const completedIds = tasks.filter(t => t.completed === true).map(t => t.id);
     if (completedIds.length === 0) return;
     try {
       await Promise.all(completedIds.map(id => deleteTaskOnServer(id)));
-      tasks = tasks.filter(t => !t.completed);
+      tasks = tasks.filter(t => !t.completedIds.includes(t.id));
       render();
     } catch (err) {
       console.error(err);
