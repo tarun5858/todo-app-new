@@ -1,12 +1,25 @@
 (function () {
-  const API_URL = '/api/tasks';
-  const LAST_CLEANUP_KEY = 'ledger-last-cleanup'; // stays in localStorage — it's just a local flag, not task data
+  const API_URL =
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000/api/tasks"
+      : "/api/tasks";
 
-  const form = document.getElementById('entry-form');
-  const input = document.getElementById('task-input');
-  const list = document.getElementById('task-list');
-  const statsText = document.getElementById('stats-text');
-  const clearDoneBtn = document.getElementById('clear-done');
+  const AUTH_API_URL =
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "localhost"
+      ? "http://localhost:5000/api/auth"
+      : "/api/auth";
+  const TOKEN_KEY = "ledger-token";
+  const USER_KEY = "ledger-user";
+
+  const LAST_CLEANUP_KEY = "ledger-last-cleanup"; // stays in localStorage — it's just a local flag, not task data
+
+  const form = document.getElementById("entry-form");
+  const input = document.getElementById("task-input");
+  const list = document.getElementById("task-list");
+  const statsText = document.getElementById("stats-text");
+  const clearDoneBtn = document.getElementById("clear-done");
 
   let tasks = [];
   let editingId = null; // id of the task currently being edited, or null
@@ -20,49 +33,61 @@
     return { ...task, id: task._id };
   }
 
+  function authHeaders() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async function fetchTasks() {
-    const res = await fetch(API_URL);
-    if (!res.ok) throw new Error('Failed to fetch tasks');
+    const res = await fetch(API_URL, { headers: { ...authHeaders() } });
+    if (res.status === 401) {
+      logout();
+      return;
+    }
+    if (!res.ok) throw new Error("Failed to fetch tasks");
     const data = await res.json();
     tasks = data.map(normalize);
   }
 
   async function createTaskOnServer(text) {
     const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text }),
     });
-    if (!res.ok) throw new Error('Failed to create task');
+    if (!res.ok) throw new Error("Failed to create task");
     return normalize(await res.json());
   }
 
   async function updateTaskOnServer(id, updates) {
     const res = await fetch(`${API_URL}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(updates),
     });
-    if (!res.ok) throw new Error('Failed to update task');
+    if (!res.ok) throw new Error("Failed to update task");
     return normalize(await res.json());
   }
 
   async function deleteTaskOnServer(id) {
-    const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete task');
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+      headers: { ...authHeaders() },
+    });
+    if (!res.ok) throw new Error("Failed to delete task");
   }
 
   // Returns today's date as "YYYY-MM-DD" in the user's local timezone.
   function getTodayKey(d = new Date()) {
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   }
 
   // How many local midnights have passed since a "YYYY-MM-DD" date string.
   function daysSince(dateKey) {
-    const [y, m, day] = dateKey.split('-').map(Number);
+    const [y, m, day] = dateKey.split("-").map(Number);
     const start = new Date(y, m - 1, day);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -70,105 +95,116 @@
   }
 
   function render() {
-    list.innerHTML = '';
+    list.innerHTML = "";
 
     if (tasks.length === 0) {
-      const empty = document.createElement('li');
-      empty.className = 'empty-state';
-      empty.innerHTML = '<span class="mark">—</span>Nothing on the ledger. Add your first task above.';
+      const empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.innerHTML =
+        '<span class="mark">—</span>Nothing on the ledger. Add your first task above.';
       list.appendChild(empty);
     } else {
       tasks.forEach((task, i) => {
-        const li = document.createElement('li');
-        li.className = 'task' + (task.completed ? ' completed' : '');
+        const li = document.createElement("li");
+        li.className = "task" + (task.completed ? " completed" : "");
 
-        const index = document.createElement('span');
-        index.className = 'task-index';
-        index.textContent = String(i + 1).padStart(2, '0');
+        const index = document.createElement("span");
+        index.className = "task-index";
+        index.textContent = String(i + 1).padStart(2, "0");
 
-        const checkbox = document.createElement('button');
-        checkbox.type = 'button';
-        checkbox.className = 'checkbox' + (task.completed ? ' checked' : '');
-        checkbox.setAttribute('aria-label', task.completed ? 'Mark as not completed' : 'Mark as completed');
-        checkbox.setAttribute('aria-pressed', String(task.completed));
-        checkbox.addEventListener('click', () => toggleTask(task.id, task.completed));
+        const checkbox = document.createElement("button");
+        checkbox.type = "button";
+        checkbox.className = "checkbox" + (task.completed ? " checked" : "");
+        checkbox.setAttribute(
+          "aria-label",
+          task.completed ? "Mark as not completed" : "Mark as completed",
+        );
+        checkbox.setAttribute("aria-pressed", String(task.completed));
+        checkbox.addEventListener("click", () =>
+          toggleTask(task.id, task.completed),
+        );
 
         li.appendChild(index);
         li.appendChild(checkbox);
 
         // ---- EDIT MODE: swap text for an input box ----
         if (editingId === task.id) {
-          const editInput = document.createElement('input');
-          editInput.type = 'text';
-          editInput.className = 'edit-input';
+          const editInput = document.createElement("input");
+          editInput.type = "text";
+          editInput.className = "edit-input";
           editInput.value = task.text;
           editInput.maxLength = 200;
 
-          editInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') saveEdit(task.id, editInput.value);
-            if (e.key === 'Escape') cancelEdit();
+          editInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") saveEdit(task.id, editInput.value);
+            if (e.key === "Escape") cancelEdit();
           });
 
-          const saveBtn = document.createElement('button');
-          saveBtn.type = 'button';
-          saveBtn.className = 'save-btn';
-          saveBtn.textContent = 'Save';
-          saveBtn.addEventListener('click', () => saveEdit(task.id, editInput.value));
+          const saveBtn = document.createElement("button");
+          saveBtn.type = "button";
+          saveBtn.className = "save-btn";
+          saveBtn.textContent = "Save";
+          saveBtn.addEventListener("click", () =>
+            saveEdit(task.id, editInput.value),
+          );
 
-          const cancelBtn = document.createElement('button');
-          cancelBtn.type = 'button';
-          cancelBtn.className = 'delete-btn';
-          cancelBtn.textContent = 'Cancel';
-          cancelBtn.addEventListener('click', () => cancelEdit());
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.className = "delete-btn";
+          cancelBtn.textContent = "Cancel";
+          cancelBtn.addEventListener("click", () => cancelEdit());
 
           li.appendChild(editInput);
           li.appendChild(saveBtn);
           li.appendChild(cancelBtn);
           list.appendChild(li);
 
-          setTimeout(() => { editInput.focus(); editInput.selectionStart = editInput.value.length; }, 0);
+          setTimeout(() => {
+            editInput.focus();
+            editInput.selectionStart = editInput.value.length;
+          }, 0);
           return; // skip the normal (non-edit) row below
         }
 
         // ---- NORMAL MODE ----
-        const text = document.createElement('span');
-        text.className = 'task-text';
+        const text = document.createElement("span");
+        text.className = "task-text";
         text.textContent = task.text;
         li.appendChild(text);
 
         const age = daysSince(task.createdDate || getTodayKey());
         if (!task.completed && age > 0) {
-          const badge = document.createElement('span');
-          badge.className = 'carry-badge';
-          badge.textContent = age === 1 ? '+1 day' : `+${age} days`;
+          const badge = document.createElement("span");
+          badge.className = "carry-badge";
+          badge.textContent = age === 1 ? "+1 day" : `+${age} days`;
           li.appendChild(badge);
         }
 
         if (!task.completed) {
-          const editBtn = document.createElement('button');
-          editBtn.type = 'button';
-          editBtn.className = 'edit-btn';
-          editBtn.setAttribute('aria-label', 'Edit task: ' + task.text);
-          editBtn.textContent = 'Edit';
-          editBtn.addEventListener('click', () => startEdit(task.id));
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "edit-btn";
+          editBtn.setAttribute("aria-label", "Edit task: " + task.text);
+          editBtn.textContent = "Edit";
+          editBtn.addEventListener("click", () => startEdit(task.id));
           li.appendChild(editBtn);
         }
 
-        const del = document.createElement('button');
-        del.type = 'button';
-        del.className = 'delete-btn';
-        del.setAttribute('aria-label', 'Delete task: ' + task.text);
-        del.textContent = '✕';
-        del.addEventListener('click', () => deleteTask(task.id));
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "delete-btn";
+        del.setAttribute("aria-label", "Delete task: " + task.text);
+        del.textContent = "✕";
+        del.addEventListener("click", () => deleteTask(task.id));
         li.appendChild(del);
 
         list.appendChild(li);
       });
     }
 
-    const openCount = tasks.filter(t => !t.completed).length;
-    statsText.textContent = openCount + ' open · ' + tasks.length + ' total';
-    const hasDone = tasks.some(t => t.completed);
+    const openCount = tasks.filter((t) => !t.completed).length;
+    statsText.textContent = openCount + " open · " + tasks.length + " total";
+    const hasDone = tasks.some((t) => t.completed);
     clearDoneBtn.disabled = !hasDone;
   }
 
@@ -183,29 +219,33 @@
       render();
     } catch (err) {
       console.error(err);
-      alert('Could not save task — is the backend server running on localhost:5000?');
+      alert(
+        "Could not save task — is the backend server running on localhost:5000?",
+      );
     }
   }
 
   async function deleteTask(id) {
     try {
       await deleteTaskOnServer(id);
-      tasks = tasks.filter(t => t.id !== id);
+      tasks = tasks.filter((t) => t.id !== id);
       render();
     } catch (err) {
       console.error(err);
-      alert('Could not delete task.');
+      alert("Could not delete task.");
     }
   }
 
   async function toggleTask(id, currentlyCompleted) {
     try {
-      const updated = await updateTaskOnServer(id, { completed: !currentlyCompleted });
-      tasks = tasks.map(t => t.id === id ? updated : t); // only this one task is replaced
+      const updated = await updateTaskOnServer(id, {
+        completed: !currentlyCompleted,
+      });
+      tasks = tasks.map((t) => (t.id === id ? updated : t)); // only this one task is replaced
       render();
     } catch (err) {
       console.error(err);
-      alert('Could not update task.');
+      alert("Could not update task.");
     }
   }
 
@@ -216,15 +256,18 @@
 
   async function saveEdit(id, newText) {
     const trimmed = newText.trim();
-    if (!trimmed) { cancelEdit(); return; }
+    if (!trimmed) {
+      cancelEdit();
+      return;
+    }
     try {
       const updated = await updateTaskOnServer(id, { text: trimmed });
-      tasks = tasks.map(t => t.id === id ? updated : t);
+      tasks = tasks.map((t) => (t.id === id ? updated : t));
       editingId = null;
       render();
     } catch (err) {
       console.error(err);
-      alert('Could not save changes.');
+      alert("Could not save changes.");
     }
   }
 
@@ -234,26 +277,28 @@
   }
 
   async function clearCompleted() {
-    const completedIds = tasks.filter(t => t.completed === true).map(t => t.id);
+    const completedIds = tasks
+      .filter((t) => t.completed === true)
+      .map((t) => t.id);
     if (completedIds.length === 0) return;
     try {
-      await Promise.all(completedIds.map(id => deleteTaskOnServer(id)));
-      tasks = tasks.filter(t => !t.completedIds.includes(t.id));
+      await Promise.all(completedIds.map((id) => deleteTaskOnServer(id)));
+      tasks = tasks.filter((t) => !t.completedIds.includes(t.id));
       render();
     } catch (err) {
       console.error(err);
-      alert('Could not clear completed tasks.');
+      alert("Could not clear completed tasks.");
     }
   }
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
     addTask(input.value);
-    input.value = '';
+    input.value = "";
     input.focus();
   });
 
-  clearDoneBtn.addEventListener('click', clearCompleted);
+  clearDoneBtn.addEventListener("click", clearCompleted);
 
   // ---- Midnight rollover ("cron job") ----
   // Same idea as before, but now it deletes completed tasks from MongoDB
@@ -269,7 +314,14 @@
 
   function scheduleNextMidnightCheck() {
     const now = new Date();
-    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+    const nextMidnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      0,
+      0,
+      5,
+    );
     const msUntilMidnight = nextMidnight - now;
 
     setTimeout(() => {
@@ -278,18 +330,119 @@
     }, msUntilMidnight);
   }
 
-  // ---- Init: load from the database first, then paint the page ----
-  async function init() {
+  const authScreen = document.getElementById("auth-screen");
+  const appScreen = document.getElementById("app-screen");
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const authError = document.getElementById("auth-error");
+  const logoutBtn = document.getElementById("logout-btn");
+
+  function showAuthScreen() {
+    authScreen.style.display = "block";
+    appScreen.style.display = "none";
+  }
+
+  function showAppScreen() {
+    authScreen.style.display = "none";
+    appScreen.style.display = "block";
+  }
+
+  async function loginUser(email, password) {
+    const res = await fetch(`${AUTH_API_URL}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Login failed");
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY, data.name);
+  }
+
+  async function registerUser(name, email, password) {
+    const res = await fetch(`${AUTH_API_URL}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Registration failed");
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY, data.name);
+  }
+
+  function logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+
+    tasks = [];
+    showAuthScreen();
+  }
+
+  document.getElementById("show-register").addEventListener("click", (e) => {
+    e.preventDefault();
+    loginForm.style.display = "none";
+    registerForm.style.display = "flex";
+  });
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    authError.textContent = "";
     try {
-      await fetchTasks();
+      await loginUser(
+        document.getElementById("login-email").value,
+        document.getElementById("login-password").value,
+      );
+      await startApp();
     } catch (err) {
-      console.error('Could not load tasks from server:', err);
-      alert('Could not reach the backend. Make sure it is running on localhost:5000.');
+      authError.textContent = err.message;
     }
+  });
+
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    authError.textContent = "";
+    try {
+      await registerUser(
+        document.getElementById("register-name").value,
+        document.getElementById("register-email").value,
+        document.getElementById("register-password").value,
+      );
+      await startApp();
+    } catch (err) {
+      authError.textContent = err.message;
+    }
+  });
+
+  logoutBtn.addEventListener("click", logout);
+
+  async function startApp() {
+    showAppScreen();
+    await fetchTasks();
     render();
     runMidnightRollover();
     scheduleNextMidnightCheck();
   }
 
+  // ---- Init: load from the database first, then paint the page ----
+  // async function init() {
+  //   try {
+  //     await fetchTasks();
+  //   } catch (err) {
+  //     console.error('Could not load tasks from server:', err);
+  //     alert('Could not reach the backend. Make sure it is running on localhost:5000.');
+  //   }
+  //   render();
+  //   runMidnightRollover();
+  //   scheduleNextMidnightCheck();
+  // }
+
+  async function init() {
+    if (localStorage.getItem(TOKEN_KEY)) {
+      await startApp();
+    } else {
+      showAuthScreen();
+    }
+  }
   init();
 })();
