@@ -255,6 +255,10 @@
   font-size: 0.85em;
   cursor: pointer;
 }
+.head-parent{
+  display: flex;
+  justify-content: space-between;
+}
 .delete-btn:hover { background: #285F53; color: #fff;}
  
   @media (prefers-reduced-motion: reduce) {
@@ -267,7 +271,7 @@
   <!-- signup page -->
    <div class="page" id="auth-screen">
   <header>
-    <h1>The Ledger</h1>
+    <h1>Login & Signup Page</h1>
     <p class="subtitle">sign in to see your tasks.</p>
   </header>
 
@@ -295,8 +299,11 @@
 
   <div class="page" id="app-screen" style="display:none;">
     <header>
-      <h1>To-Do App</h1>
-      <button id="logout-btn" type="button" style="background:none; border:1px solid var(--ink-soft); color:var(--ink-soft); padding:0.4em 0.8em; cursor:pointer; font-family:'IBM Plex Mono', monospace;">Log out</button>
+      <div class="head-parent">
+
+        <h1>To-Do App</h1>
+        <button id="logout-btn" type="button" style="background:none; border:1px solid var(--ink-soft); color:var(--ink-soft); padding:0.4em 0.8em; cursor:pointer; font-family:'IBM Plex Mono', monospace;">Log out</button>
+      </div>
        <p class="subtitle">Add, Delete and Mark tasks as completed.</p>
     </header>
  
