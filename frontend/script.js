@@ -37,6 +37,7 @@
     const token = localStorage.getItem(TOKEN_KEY);
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
+  // The token, once received from login/register, is saved in the browser's localStorage (this is why you stay logged in across page refreshes). authHeaders() is a small helper that builds the Authorization: Bearer <token> header object — reused in every API call so we're not repeating this logic four times.
 
   async function fetchTasks() {
     const res = await fetch(API_URL, { headers: { ...authHeaders() } });
@@ -358,6 +359,7 @@
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USER_KEY, data.name);
   }
+  // Sends email/password to the backend. On success, stores the returned token and name in localStorage. On failure, throws an error which the calling form handler catches and displays on screen.
 
   async function registerUser(name, email, password) {
     const res = await fetch(`${AUTH_API_URL}/register`, {
@@ -378,6 +380,7 @@
     tasks = [];
     showAuthScreen();
   }
+  // Clears the saved token (so future requests have no Authorization header and get rejected as expected), wipes the in-memory tasks array, and switches the UI back to the login screen.
 
   document.getElementById("show-register").addEventListener("click", (e) => {
     e.preventDefault();
@@ -445,4 +448,5 @@
     }
   }
   init();
+  // Runs once when the page loads. If a token already exists in localStorage from a previous session, skip straight to loading tasks (startApp()). Otherwise show the login/register screen first.
 })();

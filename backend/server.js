@@ -8,26 +8,15 @@ const authRoutes = require('./routes/authRoutes')
 
 const app = express();
 
-// const allowedOrigins = [
-//   "http://127.0.0.1:5500", // Live Server, local dev
-//   "http://localhost:5500",
-//   process.env.CLIENT_ORIGIN, // your deployed frontend URL, set in Step 6
-// ].filter(Boolean);
-
-// app.use(cors({ origin: allowedOrigins })); // allows your frontend (different origin) to call this API
 app.use(cors()); // allows your frontend (different origin) to call this API
 app.use(express.json()); // parses incoming JSON request bodies
 app.use('/api/auth',authRoutes);
+// Mounts the auth routes under /api/auth, so register becomes reachable at POST /api/auth/register and login at POST /api/auth/login.
 
 connectDB();
 
 
 app.use("/api/tasks", taskRoutes);
-
-// app.get("/", (req, res) => {
-//   res.send("Todo API is running");
-// });
-
 
 app.use(express.static(path.join(__dirname,'..', 'frontend')));
 
