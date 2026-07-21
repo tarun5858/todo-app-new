@@ -20,6 +20,40 @@
   const list = document.getElementById("task-list");
   const statsText = document.getElementById("stats-text");
   const clearDoneBtn = document.getElementById("clear-done");
+  const GOOGLE_CLIENT_ID='1074463554642-0aqv9c24ddq6oqs2q2dkc962hjfp42pp.apps.googleusercontent.com'
+
+   // Called automatically by Google once the user picks an account and approves.
+  async function handleGoogleCredential(response) {
+    try {
+      const res = await fetch(`${AUTH_API_URL}/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Google sign-in failed');
+
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USER_KEY, data.name);
+      await startApp();
+    } catch (err) {
+      authError.textContent = err.message;
+    }
+  }
+
+  // Renders Google's official sign-in button into the page.
+  window.onload = () => {
+    if (window.google) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('google-signin-btn'),
+        { theme: 'outline', size: 'large', width: 280 }
+      );
+    }
+  };
 
   let tasks = [];
   let editingId = null; // id of the task currently being edited, or null

@@ -1,5 +1,51 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const {OAuth2Client} =  require('google-auth-library')
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body; // the ID token sent from the frontend
+
+    // Verifies the token was genuinely issued by Google for YOUR app
+    // (checks signature, expiry, and that the audience matches your Client ID).
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload(); // { email, name, sub, ... }
+
+    let user = await User.findOne({ email: payload.email.toLowerCase() });
+
+    if (!user) {
+      // First time this Google account has signed in — create a new user.
+      // No password is set; googleId links this account to Google going forward.
+      user = await User.create({
+        name: payload.name,
+        email: payload.email,
+        googleId: payload.sub
+      });
+    } else if (!user.googleId) {
+      // An account with this email already exists (e.g. they registered with
+      // a password earlier) — link the Google account to it instead of erroring.
+      user.googleId = payload.sub;
+      await user.save();
+    }
+
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      token: generateToken(user._id) // same JWT system as normal login
+    });
+  } catch (err) {
+    console.error('Google login error:', err);
+    res.status(401).json({ message: 'Google sign-in failed' });
+  }
+};
+
 
 function generateToken(id) {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
